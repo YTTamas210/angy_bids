@@ -3,67 +3,97 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Physics Birds</title>
+<title>Angry Birds – Physics</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;700&display=swap');
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { overflow:hidden; background:#000; }
-  #gw {
-    position:fixed; inset:0;
-    background:linear-gradient(180deg,#87CEEB 0%,#b8e4f7 60%,#dff6ff 100%);
-  }
+  body { overflow:hidden; background:#1a1a2e; }
+  #gw { position:fixed; inset:0; }
   canvas { display:block; width:100%; height:100%; }
+
   #hud {
-    position:fixed; top:12px; left:12px; right:12px;
+    position:fixed; top:14px; left:14px; right:14px;
     display:flex; justify-content:space-between; align-items:center;
-    pointer-events:none;
+    pointer-events:none; gap:8px;
   }
   .pill {
-    background:rgba(255,255,255,0.88);
-    padding:6px 14px; border-radius:20px;
-    font-size:13px; font-weight:500; color:#222;
-    font-family:sans-serif;
+    background:linear-gradient(135deg,rgba(255,255,255,0.95),rgba(255,240,200,0.92));
+    padding:7px 16px; border-radius:24px;
+    font-size:14px; font-weight:700; color:#5d3a00;
+    font-family:'Nunito',sans-serif;
+    box-shadow:0 2px 8px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.8);
+    border:1.5px solid rgba(255,200,80,0.5);
+    display:flex; align-items:center; gap:6px;
   }
+  .pill span { color:#b84a00; }
+
   #hintBox {
-    position:fixed; top:52px; left:12px;
-    background:rgba(255,255,255,0.75);
-    padding:4px 12px; border-radius:14px;
-    font-size:11px; color:#555; pointer-events:none;
-    font-family:sans-serif;
+    position:fixed; top:58px; left:14px;
+    background:linear-gradient(135deg,rgba(255,255,255,0.88),rgba(255,248,220,0.85));
+    padding:5px 14px; border-radius:16px;
+    font-size:12px; color:#7b4500; pointer-events:none;
+    font-family:'Nunito',sans-serif; font-weight:600;
+    box-shadow:0 2px 6px rgba(0,0,0,0.12);
+    border:1px solid rgba(255,180,50,0.3);
   }
+
   #msgBox {
     display:none; position:fixed;
-    top:50%; left:50%; transform:translate(-50%,-50%);
-    background:rgba(255,255,255,0.96);
-    padding:20px 32px; border-radius:16px;
-    text-align:center; font-size:17px; font-weight:500; color:#222;
-    white-space:nowrap; z-index:10; font-family:sans-serif;
+    top:50%; left:50%; transform:translate(-50%,-50%) scale(0.85);
+    background:linear-gradient(135deg,#fff9e6,#fff3cc);
+    padding:28px 44px; border-radius:24px;
+    text-align:center; font-size:22px; font-weight:700; color:#5d3a00;
+    white-space:nowrap; z-index:10;
+    font-family:'Fredoka One',cursive;
+    box-shadow:0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.1);
+    border:3px solid rgba(255,200,50,0.6);
+    transition:transform 0.2s cubic-bezier(.34,1.56,.64,1), opacity 0.2s;
+    opacity:0;
   }
+  #msgBox.show {
+    transform:translate(-50%,-50%) scale(1);
+    opacity:1;
+  }
+
   #hint2 {
-    position:fixed; bottom:12px; left:12px;
-    font-size:11px; color:rgba(0,0,0,0.4);
-    font-family:sans-serif; pointer-events:none;
+    position:fixed; bottom:14px; left:14px;
+    font-size:11px; color:rgba(255,255,255,0.55);
+    font-family:'Nunito',sans-serif; pointer-events:none;
+    text-shadow:0 1px 3px rgba(0,0,0,0.4);
   }
   #btns {
-    position:fixed; bottom:12px; right:12px;
+    position:fixed; bottom:14px; right:14px;
     display:flex; gap:8px;
   }
   button {
-    background:rgba(255,255,255,0.88);
-    border:0.5px solid rgba(0,0,0,0.18);
-    border-radius:20px; padding:6px 14px;
-    font-size:13px; cursor:pointer; font-family:sans-serif;
+    background:linear-gradient(135deg,#ffb300,#ff8f00);
+    border:none; border-radius:22px;
+    padding:8px 18px; font-size:13px; cursor:pointer;
+    font-family:'Nunito',sans-serif; font-weight:700;
+    color:#fff; letter-spacing:0.3px;
+    box-shadow:0 3px 10px rgba(255,140,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+    transition:transform 0.1s, box-shadow 0.1s;
+  }
+  button:hover { transform:translateY(-1px); box-shadow:0 5px 14px rgba(255,140,0,0.5); }
+  button:active { transform:translateY(1px); box-shadow:0 1px 4px rgba(255,140,0,0.3); }
+
+  /* Várakozó madarak a bal alsó sarokban */
+  #birdQueue {
+    position:fixed; bottom:48px; left:14px;
+    display:flex; gap:4px; pointer-events:none;
   }
 </style>
 </head>
 <body>
 <div id="gw"><canvas id="gc"></canvas></div>
 <div id="hud">
-  <div class="pill"><span id="lvlLbl">1. pálya</span> &nbsp;·&nbsp; 🐦 <span id="birdLbl">3</span></div>
-  <div class="pill">🐷 <span id="pigLbl">0</span></div>
+  <div class="pill">🎯 <span id="lvlLbl">1. pálya</span></div>
+  <div class="pill">🐷 <span id="pigLbl">0</span> db</div>
 </div>
-<div id="hintBox"></div>
+<div id="hintBox" id="hintBox"></div>
 <div id="msgBox"></div>
-<div id="hint2">Húzd a piros madarat! [R = újra]</div>
+<div id="hint2">Húzd a madarat a parittyán! [R = újra]</div>
+<div id="birdQueue"></div>
 <div id="btns">
   <button id="btnR">↺ Újra</button>
   <button id="btnN" style="display:none">Következő →</button>
@@ -87,21 +117,16 @@ const render = Render.create({
   options:{width:W(),height:H(),wireframes:false,background:'transparent'}
 });
 
-const GH = 28;
+const GH = 32;
 const ground = Bodies.rectangle(W()/2, H()-GH/2, W()*4, GH, {
-  isStatic:true, label:'ground', render:{fillStyle:'#5a9e44'}
+  isStatic:true, label:'ground', render:{fillStyle:'rgba(0,0,0,0)'}
 });
 Composite.add(world, ground);
 
 const SX = 130, MAX_PULL = 90;
-const SY = ()=>H()-GH-127; // parittya magassága: 127px a talaj felett
-
-// Gravitáció empirikusan mérve Matter.js 0.19 alapján:
-// engine.gravity.y=1, scale=0.001, timestep=1000/60
-// g_px_per_frame = 1 * 0.001 * (1000/60) = 0.2778 px/frame (velocity/frame)
-// De a Runner deltaidőre skálázódik: ténylegesen ~0.55 px/frame² a gyakorlatban
+const SY = ()=>H()-GH-127;
 const G_TRAJ = 0.55;
-const SPEED = 0.18; // ugyanaz mint fireBird-ben
+const SPEED = 0.18;
 
 let bird=null, birdFired=false, dragging=false, dragOffX=0, dragOffY=0;
 const pigs=[], lvlObjs=[];
@@ -116,9 +141,10 @@ function makeBird(){
   clearTimeout(birdSettleTimer);
   bird=Bodies.circle(SX,SY(),18,{
     isStatic:true,density:0.005,restitution:0.4,friction:0.1,
-    label:'bird',render:{fillStyle:'#e53935',strokeStyle:'#b71c1c',lineWidth:2}
+    label:'bird',render:{fillStyle:'rgba(0,0,0,0)',strokeStyle:'rgba(0,0,0,0)',lineWidth:0}
   });
   Composite.add(world,bird);
+  updateBirdQueue();
 }
 
 function clearLevel(){
@@ -129,27 +155,54 @@ function clearLevel(){
 function addPig(x,y){
   const p=Bodies.circle(x,y,18,{
     isStatic:false,restitution:0.15,friction:0.8,frictionStatic:1,
-    label:'pig',render:{fillStyle:'#43a047',strokeStyle:'#2e7d32',lineWidth:2}
+    label:'pig',render:{fillStyle:'rgba(0,0,0,0)',strokeStyle:'rgba(0,0,0,0)',lineWidth:0}
   });
   pigs.push(p); lvlObjs.push(p); Composite.add(world,p);
 }
 
-function wall(x,y,w,h,color='#8d6e63'){
+function wall(x,y,w,h,mat='wood'){
+  const colors={
+    wood:{fill:'#a0522d',stroke:'#6d3318',hi:'#cd7f4a'},
+    stone:{fill:'#8d9db0',stroke:'#5a6472',hi:'#b8c8d8'},
+    dark:{fill:'#5d4037',stroke:'#3e2723',hi:'#795548'},
+  };
+  const c=colors[mat]||colors.wood;
   const b=Bodies.rectangle(x,y,w,h,{
     isStatic:true,label:'wall',
-    render:{fillStyle:color,strokeStyle:'#5d4037',lineWidth:1.5}
+    render:{fillStyle:c.fill, strokeStyle:c.stroke, lineWidth:1.5},
+    plugin:{mat:mat, hi:c.hi}
   });
   lvlObjs.push(b); Composite.add(world,b);
 }
 
-// Pályák: X koordináta a parittyától számítva (~130px-től jobbra)
-// Disznók max ~100px magasan a talajtól (gnd()-100)
+// Háttér elemek (egyszer generálva)
+let bgElements=null;
+function generateBg(){
+  const W_=W(), H_=H();
+  bgElements={
+    clouds:[
+      {x:W_*0.15,y:H_*0.1,s:1.0},{x:W_*0.38,y:H_*0.07,s:0.7},
+      {x:W_*0.6,y:H_*0.13,s:1.2},{x:W_*0.82,y:H_*0.06,s:0.85},
+    ],
+    mountains:[
+      {x:W_*0.2,y:gnd(),w:220,h:160,c:'#b0c4de'},
+      {x:W_*0.45,y:gnd(),w:280,h:120,c:'#a8bcd4'},
+      {x:W_*0.7,y:gnd(),w:240,h:180,c:'#b8cee6'},
+      {x:W_*0.88,y:gnd(),w:180,h:100,c:'#c0d4e8'},
+    ],
+    trees:[
+      {x:50,y:gnd()},{x:75,y:gnd()},{x:W_*0.25,y:gnd()},
+      {x:W_*0.28,y:gnd()},{x:W_*0.55,y:gnd()},
+    ]
+  };
+}
+
 const levels=[
   {birds:3, desc:'Lőj egyenesen a malacra!', build:()=>{
     addPig(360, gnd()-18);
   }},
   {birds:3, desc:'Lőj a polcon ülő malacra!', build:()=>{
-    wall(360, gnd()-48, 120, 14);
+    wall(360, gnd()-48, 120, 14,'wood');
     addPig(360, gnd()-75);
   }},
   {birds:3, desc:'Két malac – mindkettőt el kell találni!', build:()=>{
@@ -157,82 +210,111 @@ const levels=[
     addPig(450, gnd()-18);
   }},
   {birds:3, desc:'Két malac, két szint!', build:()=>{
-    wall(310, gnd()-38, 100, 14);
+    wall(310, gnd()-38, 100, 14,'wood');
     addPig(310, gnd()-65);
-    wall(450, gnd()-65, 100, 14);
+    wall(450, gnd()-65, 100, 14,'wood');
     addPig(450, gnd()-92);
   }},
   {birds:3, desc:'Lőj felülről a nyitott zárba!', build:()=>{
-    wall(350, gnd()-48, 14, 95);
-    wall(430, gnd()-48, 14, 95);
-    wall(390, gnd()-13, 66, 14);
+    wall(350, gnd()-48, 14, 95,'stone');
+    wall(430, gnd()-48, 14, 95,'stone');
+    wall(390, gnd()-13, 66, 14,'stone');
     addPig(390, gnd()-40);
   }},
   {birds:3, desc:'Egy szabad, egy zárt – spórold a madarakat!', build:()=>{
     addPig(290, gnd()-18);
-    wall(420, gnd()-48, 14, 95);
-    wall(490, gnd()-48, 14, 95);
-    wall(455, gnd()-13, 56, 14);
+    wall(420, gnd()-48, 14, 95,'stone');
+    wall(490, gnd()-48, 14, 95,'stone');
+    wall(455, gnd()-13, 56, 14,'stone');
     addPig(455, gnd()-40);
   }},
   {birds:4, desc:'Három malac – mindegyik más távolságra!', build:()=>{
-    wall(295, gnd()-38, 80, 14);
+    wall(295, gnd()-38, 80, 14,'wood');
     addPig(295, gnd()-65);
-    wall(390, gnd()-55, 80, 14);
+    wall(390, gnd()-55, 80, 14,'wood');
     addPig(390, gnd()-82);
-    wall(490, gnd()-72, 80, 14);
+    wall(490, gnd()-72, 80, 14,'wood');
     addPig(490, gnd()-99);
   }},
   {birds:3, desc:'Lőj a résen át a bunkerba!', build:()=>{
     const cx=410;
-    wall(cx-46, gnd()-52, 16, 104);
-    wall(cx+46, gnd()-52, 16, 104);
-    // tetőlapok: 46px rés középen
-    wall(cx-57, gnd()-101, 30, 14);
-    wall(cx+57, gnd()-101, 30, 14);
-    wall(cx, gnd()-13, 76, 16);
+    wall(cx-46, gnd()-52, 16, 104,'stone');
+    wall(cx+46, gnd()-52, 16, 104,'stone');
+    wall(cx-57, gnd()-101, 30, 14,'stone');
+    wall(cx+57, gnd()-101, 30, 14,'stone');
+    wall(cx, gnd()-13, 76, 16,'stone');
     addPig(cx, gnd()-57);
   }},
   {birds:3, desc:'Két bunker – két pontos lövés kell!', build:()=>{
     function bunker(cx){
-      wall(cx-36, gnd()-48, 14, 96);
-      wall(cx+36, gnd()-48, 14, 96);
-      wall(cx-48, gnd()-93, 26, 14);
-      wall(cx+48, gnd()-93, 26, 14);
-      wall(cx, gnd()-13, 58, 14);
+      wall(cx-36, gnd()-48, 14, 96,'stone');
+      wall(cx+36, gnd()-48, 14, 96,'stone');
+      wall(cx-48, gnd()-93, 26, 14,'stone');
+      wall(cx+48, gnd()-93, 26, 14,'stone');
+      wall(cx, gnd()-13, 58, 14,'stone');
       addPig(cx, gnd()-57);
     }
     bunker(330); bunker(470);
   }},
   {birds:1, desc:'1 madár, 1 esély – felülről kell bedobni!', build:()=>{
     const cx=410;
-    const innerW=80; // belső szélesség: cx-40-től cx+40-ig
-    // Oldalfalak (külső széle cx±47, belső széle cx±40)
-    wall(cx-43, gnd()-55, 14, 110); // bal fal: cx-50 .. cx-36
-    wall(cx+43, gnd()-55, 14, 110); // jobb fal: cx+36 .. cx+50
-    // Alap
-    wall(cx, gnd()-13, 86, 14);
-    // Tetőlapok: pontosan az oldalfal belső széléig érnek, 38px rés középen
-    // Bal tetőlap: cx-40-tól cx-19-ig (közép: cx-29, szélesség: 22)
-    wall(cx-29, gnd()-103, 22, 14);
-    // Jobb tetőlap: cx+19-től cx+40-ig (közép: cx+29, szélesség: 22)
-    wall(cx+29, gnd()-103, 22, 14);
-
+    wall(cx-43, gnd()-55, 14, 110,'dark');
+    wall(cx+43, gnd()-55, 14, 110,'dark');
+    wall(cx, gnd()-13, 86, 14,'dark');
+    wall(cx-29, gnd()-103, 22, 14,'dark');
+    wall(cx+29, gnd()-103, 22, 14,'dark');
     addPig(cx-8, gnd()-38);
   }},
 ];
 
+function updateBirdQueue(){
+  const q=document.getElementById('birdQueue');
+  q.innerHTML='';
+  const remaining=Math.max(birdsTotal-birdsUsed,0);
+  for(let i=0;i<remaining;i++){
+    const c=document.createElement('canvas');
+    c.width=28; c.height=28;
+    const cx2=c.getContext('2d');
+    // Mini madár ikon
+    cx2.save(); cx2.translate(14,14);
+    const rr=11;
+    const gg=cx2.createRadialGradient(-3,-3,1,0,0,rr);
+    gg.addColorStop(0,'#ff6f60'); gg.addColorStop(1,'#c62828');
+    cx2.beginPath(); cx2.arc(0,0,rr,0,Math.PI*2);
+    cx2.fillStyle=gg; cx2.fill();
+    cx2.strokeStyle='rgba(0,0,0,0.15)'; cx2.lineWidth=1; cx2.stroke();
+    // toll
+    cx2.strokeStyle='#c62828'; cx2.lineWidth=1.5; cx2.lineCap='round';
+    cx2.beginPath(); cx2.moveTo(0,-rr+1); cx2.lineTo(2,-rr-5); cx2.stroke();
+    // szem
+    cx2.fillStyle='#fff'; cx2.beginPath(); cx2.arc(-3,-2,3,0,Math.PI*2); cx2.fill();
+    cx2.fillStyle='#111'; cx2.beginPath(); cx2.arc(-2,-2,1.5,0,Math.PI*2); cx2.fill();
+    cx2.restore();
+    q.appendChild(c);
+  }
+}
+
 function updateHUD(){
   document.getElementById('lvlLbl').textContent=(curLevel+1)+'. pálya';
-  document.getElementById('birdLbl').textContent=Math.max(birdsTotal-birdsUsed,0);
   document.getElementById('pigLbl').textContent=pigs.length;
+  updateBirdQueue();
 }
-function showMsg(t){document.getElementById('msgBox').textContent=t;document.getElementById('msgBox').style.display='block';}
-function hideMsg(){document.getElementById('msgBox').style.display='none';}
+
+function showMsg(t){
+  const m=document.getElementById('msgBox');
+  m.textContent=t; m.style.display='block';
+  requestAnimationFrame(()=>m.classList.add('show'));
+}
+function hideMsg(){
+  const m=document.getElementById('msgBox');
+  m.classList.remove('show');
+  setTimeout(()=>m.style.display='none',200);
+}
 
 function loadLevel(idx){
   clearLevel(); birdsUsed=0; lvlOver=false; waitingRespawn=false;
   clearTimeout(birdSettleTimer);
+  bgElements=null;
   const lv=levels[idx%levels.length];
   birdsTotal=lv.birds;
   document.getElementById('hintBox').textContent=lv.desc;
@@ -299,13 +381,26 @@ canvas.addEventListener('touchmove',onMove,{passive:false});
 canvas.addEventListener('touchend',onUp);
 
 const toRemove=new Set();
+// Robbanás részecskék
+const particles=[];
+function spawnParticles(x,y){
+  for(let i=0;i<14;i++){
+    const angle=Math.random()*Math.PI*2;
+    const spd=2+Math.random()*4;
+    particles.push({x,y,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd-2,
+      life:1,r:3+Math.random()*4,
+      color:`hsl(${90+Math.random()*40},70%,${40+Math.random()*20}%)`});
+  }
+}
+
 Events.on(engine,'collisionStart',e=>{
   e.pairs.forEach(pair=>{
     const isBird=b=>b.label==='bird';
     const isPig=b=>b.label==='pig';
     if((isBird(pair.bodyA)&&isPig(pair.bodyB))||(isPig(pair.bodyA)&&isBird(pair.bodyB))){
       if(pair.bodyA.speed+pair.bodyB.speed>4){
-        toRemove.add(isPig(pair.bodyA)?pair.bodyA:pair.bodyB);
+        const p=isPig(pair.bodyA)?pair.bodyA:pair.bodyB;
+        toRemove.add(p);
       }
     }
   });
@@ -315,7 +410,10 @@ Events.on(engine,'afterUpdate',()=>{
   if(toRemove.size){
     toRemove.forEach(p=>{
       const i=pigs.indexOf(p);
-      if(i!==-1){Composite.remove(world,p);pigs.splice(i,1);}
+      if(i!==-1){
+        spawnParticles(p.position.x,p.position.y);
+        Composite.remove(world,p);pigs.splice(i,1);
+      }
     });
     toRemove.clear(); updateHUD();
     if(pigs.length===0&&!lvlOver) levelWin();
@@ -330,62 +428,347 @@ function levelWin(){
   lvlOver=true; clearTimeout(birdSettleTimer);
   curLevel++;
   if(curLevel>=levels.length){
-    showMsg('🎉 Mind a 10 pályát teljesítetted!'); curLevel=0;
+    showMsg('🎉 Gratulálok! Mind a 10 pályát teljesítetted!'); curLevel=0;
   } else {
-    showMsg('✅ Pálya teljesítve! ('+curLevel+'/10)');
+    showMsg('⭐ Pálya teljesítve! ('+curLevel+'/10)');
     document.getElementById('btnN').style.display='block';
   }
 }
-function levelFail(){lvlOver=true; showMsg('😢 Elfogytak a madarak! Próbáld újra.');}
+function levelFail(){lvlOver=true; showMsg('💥 Elfogytak a madarak! Próbáld újra.');}
 
 document.getElementById('btnR').onclick=()=>{clearTimeout(birdSettleTimer);loadLevel(curLevel);};
 document.getElementById('btnN').onclick=()=>{clearTimeout(birdSettleTimer);hideMsg();document.getElementById('btnN').style.display='none';loadLevel(curLevel);};
 document.addEventListener('keydown',e=>{if(e.key==='r'||e.key==='R'){clearTimeout(birdSettleTimer);loadLevel(curLevel);}});
 
-// Canvas 2D context a saját rajzoláshoz
 const ctx=canvas.getContext('2d');
 
-Events.on(render,'afterRender',()=>{
-  // Talaj felülrajzolás
-  ctx.fillStyle='#5a9e44';
-  ctx.fillRect(0,H()-GH,W(),GH);
+// ---- RAJZOLÓ SEGÉDFÜGGVÉNYEK ----
 
+function drawCloud(x,y,s){
+  ctx.save();
+  ctx.globalAlpha=0.88;
+  const puffs=[{dx:0,dy:0,r:28},{dx:-22,dy:8,r:20},{dx:22,dy:8,r:22},{dx:-10,dy:14,r:16},{dx:12,dy:15,r:15}];
+  puffs.forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(x+p.dx*s, y+p.dy*s, p.r*s, 0, Math.PI*2);
+    ctx.fillStyle='#fff';
+    ctx.fill();
+  });
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
+function drawMountain(x,y,w,h,color){
+  ctx.beginPath();
+  ctx.moveTo(x-w/2,y);
+  ctx.lineTo(x,y-h);
+  ctx.lineTo(x+w/2,y);
+  ctx.closePath();
+  ctx.fillStyle=color;
+  ctx.fill();
+  // Hócsúcs
+  ctx.beginPath();
+  ctx.moveTo(x-w*0.08,y-h*0.75);
+  ctx.lineTo(x,y-h);
+  ctx.lineTo(x+w*0.08,y-h*0.75);
+  ctx.closePath();
+  ctx.fillStyle='rgba(255,255,255,0.8)';
+  ctx.fill();
+}
+
+function drawTree(x,y){
+  // Törzs
+  ctx.fillStyle='#5d3a1a';
+  ctx.fillRect(x-4,y-28,8,28);
+  // Lombozat (3 réteg)
+  [[0,-28,22],[0,-44,18],[0,-57,13]].forEach(([dx,dy,r])=>{
+    ctx.beginPath();
+    ctx.arc(x+dx,y+dy,r,0,Math.PI*2);
+    ctx.fillStyle='#2e7d32';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x+dx-4,y+dy-4,r*0.6,0,Math.PI*2);
+    ctx.fillStyle='#388e3c';
+    ctx.fill();
+  });
+}
+
+function drawGround(){
+  const gY=H()-GH;
+  // Fő talaj réteg
+  const grd=ctx.createLinearGradient(0,gY,0,H());
+  grd.addColorStop(0,'#7cb342');
+  grd.addColorStop(0.3,'#558b2f');
+  grd.addColorStop(1,'#33691e');
+  ctx.fillStyle=grd;
+  ctx.fillRect(0,gY,W(),GH);
+  // Fű pászmák
+  ctx.strokeStyle='#8bc34a'; ctx.lineWidth=2; ctx.lineCap='round';
+  for(let x=10;x<W();x+=18+Math.sin(x)*5){
+    const h=4+Math.abs(Math.sin(x*0.3))*5;
+    ctx.beginPath(); ctx.moveTo(x,gY); ctx.lineTo(x-2,gY-h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+4,gY); ctx.lineTo(x+5,gY-h+1); ctx.stroke();
+  }
+  // Talaj vonal
+  ctx.strokeStyle='#33691e'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(0,gY); ctx.lineTo(W(),gY); ctx.stroke();
+}
+
+function drawSlingshot(){
   const sx=SX, sy=SY();
+  ctx.save();
+  // Alap-törzs (vastag Y alak)
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  // Árnyék
+  ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=12;
+  ctx.beginPath(); ctx.moveTo(sx,sy+10); ctx.lineTo(sx+2,gnd()-4); ctx.stroke();
+  // Bal ág
+  ctx.strokeStyle='#5d3a1a'; ctx.lineWidth=9;
+  ctx.beginPath(); ctx.moveTo(sx,sy+8); ctx.lineTo(sx-12,sy-52); ctx.stroke();
+  ctx.strokeStyle='#8d5524'; ctx.lineWidth=6;
+  ctx.beginPath(); ctx.moveTo(sx,sy+8); ctx.lineTo(sx-12,sy-52); ctx.stroke();
+  // Jobb ág
+  ctx.strokeStyle='#5d3a1a'; ctx.lineWidth=9;
+  ctx.beginPath(); ctx.moveTo(sx,sy+8); ctx.lineTo(sx+14,sy-57); ctx.stroke();
+  ctx.strokeStyle='#8d5524'; ctx.lineWidth=6;
+  ctx.beginPath(); ctx.moveTo(sx,sy+8); ctx.lineTo(sx+14,sy-57); ctx.stroke();
+  // Törzs
+  ctx.strokeStyle='#5d3a1a'; ctx.lineWidth=11;
+  ctx.beginPath(); ctx.moveTo(sx,sy+10); ctx.lineTo(sx+2,gnd()-4); ctx.stroke();
+  ctx.strokeStyle='#8d5524'; ctx.lineWidth=8;
+  ctx.beginPath(); ctx.moveTo(sx,sy+10); ctx.lineTo(sx+2,gnd()-4); ctx.stroke();
+  // Fa textúra vonalak
+  ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(sx-1,sy+10); ctx.lineTo(sx+1,gnd()-4); ctx.stroke();
+  ctx.restore();
+}
 
-  // Parittya ágak
-  ctx.strokeStyle='#4e342e'; ctx.lineWidth=5; ctx.lineCap='round';
-  ctx.beginPath(); ctx.moveTo(sx-5,sy+4); ctx.lineTo(sx-10,sy-50); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(sx+5,sy+4); ctx.lineTo(sx+12,sy-55); ctx.stroke();
+function drawWallBody(b){
+  const {x,y}=b.position;
+  const w=b.bounds.max.x-b.bounds.min.x;
+  const h2=b.bounds.max.y-b.bounds.min.y;
+  const mat=b.plugin&&b.plugin.mat||'wood';
+  const hi=b.plugin&&b.plugin.hi||'#cd7f4a';
 
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(b.angle);
+
+  const colors={
+    wood:{base:'#a0522d',dark:'#7b3a1a',plank:'#cd7f4a'},
+    stone:{base:'#7a8fa0',dark:'#556070',plank:'#a0b5c5'},
+    dark:{base:'#4e342e',dark:'#3e2723',plank:'#6d4c41'},
+  };
+  const c=colors[mat]||colors.wood;
+
+  // Alap
+  ctx.fillStyle=c.base;
+  roundRect(ctx,-w/2,-h2/2,w,h2,3);
+  ctx.fill();
+
+  if(mat==='wood'){
+    // Fa szálak
+    ctx.strokeStyle=c.dark; ctx.lineWidth=1; ctx.globalAlpha=0.5;
+    const step=w>h2?h2*0.4:w*0.4;
+    if(w>h2){
+      for(let i=step;i<w;i+=step){
+        ctx.beginPath(); ctx.moveTo(-w/2+i,-h2/2); ctx.lineTo(-w/2+i,h2/2); ctx.stroke();
+      }
+    } else {
+      for(let j=step;j<h2;j+=step){
+        ctx.beginPath(); ctx.moveTo(-w/2,-h2/2+j); ctx.lineTo(w/2,-h2/2+j); ctx.stroke();
+      }
+    }
+    ctx.globalAlpha=1;
+    // Kiemelés
+    ctx.fillStyle='rgba(255,255,255,0.12)';
+    roundRect(ctx,-w/2,-h2/2,w,h2/3,3);
+    ctx.fill();
+  } else if(mat==='stone'||mat==='dark'){
+    // Kő textúra
+    ctx.strokeStyle=c.dark; ctx.lineWidth=1.5; ctx.globalAlpha=0.4;
+    for(let sy2=-h2/2+8;sy2<h2/2;sy2+=10){
+      const off=(Math.floor((sy2+h2/2)/10)%2)*12;
+      for(let sx2=-w/2+off;sx2<w/2;sx2+=24){
+        ctx.strokeRect(sx2,sy2,22,9);
+      }
+    }
+    ctx.globalAlpha=1;
+    ctx.fillStyle='rgba(255,255,255,0.08)';
+    roundRect(ctx,-w/2,-h2/2,w,h2/3,3); ctx.fill();
+  }
+
+  // Szél (border)
+  ctx.strokeStyle=c.dark; ctx.lineWidth=2; ctx.globalAlpha=1;
+  roundRect(ctx,-w/2,-h2/2,w,h2,3);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function roundRect(c,x,y,w,h,r){
+  c.beginPath();
+  c.moveTo(x+r,y);
+  c.lineTo(x+w-r,y); c.arcTo(x+w,y,x+w,y+r,r);
+  c.lineTo(x+w,y+h-r); c.arcTo(x+w,y+h,x+w-r,y+h,r);
+  c.lineTo(x+r,y+h); c.arcTo(x,y+h,x,y+h-r,r);
+  c.lineTo(x,y+r); c.arcTo(x,y,x+r,y,r);
+  c.closePath();
+}
+
+function drawBirdSprite(x,y,r,angle){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(angle||0);
+  const g=ctx.createRadialGradient(-r*0.3,-r*0.3,r*0.1,0,0,r);
+  g.addColorStop(0,'#ff6f60'); g.addColorStop(0.6,'#e53935'); g.addColorStop(1,'#b71c1c');
+  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
+  ctx.fillStyle=g; ctx.fill();
+  // Árnyék alul
+  ctx.beginPath(); ctx.arc(0,r*0.4,r*0.85,0,Math.PI);
+  ctx.fillStyle='rgba(0,0,0,0.1)'; ctx.fill();
+  // Tollak
+  ctx.strokeStyle='#c62828'; ctx.lineWidth=2.5; ctx.lineCap='round';
+  [[-2,-r+2,-6,-r-9],[2,-r+1,7,-r-11],[7,-r+3,13,-r-6]].forEach(([x1,y1,x2,y2])=>{
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  });
+  // Szemöldök
+  ctx.strokeStyle='#3e2723'; ctx.lineWidth=2.5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-r*0.58,-r*0.12); ctx.lineTo(-r*0.12,-r*0.36); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(r*0.58,-r*0.12); ctx.lineTo(r*0.12,-r*0.36); ctx.stroke();
+  // Szemfehér
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.ellipse(-r*0.28,-r*0.04,r*0.23,r*0.26,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(r*0.28,-r*0.04,r*0.23,r*0.26,0,0,Math.PI*2); ctx.fill();
+  // Pupilla
+  ctx.fillStyle='#1a1a1a';
+  ctx.beginPath(); ctx.arc(-r*0.22,r*0.02,r*0.12,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(r*0.22,r*0.02,r*0.12,0,Math.PI*2); ctx.fill();
+  // Szemfény
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(-r*0.16,-r*0.04,r*0.055,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(r*0.28,-r*0.04,r*0.055,0,Math.PI*2); ctx.fill();
+  // Csőr
+  ctx.fillStyle='#ffb300';
+  ctx.beginPath(); ctx.moveTo(-r*0.2,r*0.17); ctx.lineTo(r*0.2,r*0.17); ctx.lineTo(0,r*0.44); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='#e65100'; ctx.lineWidth=1; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-r*0.16,r*0.22); ctx.lineTo(r*0.16,r*0.22); ctx.stroke();
+  ctx.restore();
+}
+
+function drawPigSprite(x,y,r){
+  ctx.save(); ctx.translate(x,y);
+  const g=ctx.createRadialGradient(-r*0.25,-r*0.25,r*0.1,0,0,r);
+  g.addColorStop(0,'#81c784'); g.addColorStop(0.6,'#43a047'); g.addColorStop(1,'#1b5e20');
+  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
+  ctx.fillStyle=g; ctx.fill();
+  // Árnyék
+  ctx.beginPath(); ctx.arc(0,r*0.4,r*0.85,0,Math.PI);
+  ctx.fillStyle='rgba(0,0,0,0.1)'; ctx.fill();
+  // Fülek
+  ctx.fillStyle='#388e3c';
+  ctx.beginPath(); ctx.ellipse(-r*0.62,-r*0.55,r*0.23,r*0.19,-0.4,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(r*0.62,-r*0.55,r*0.23,r*0.19,0.4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#a5d6a7';
+  ctx.beginPath(); ctx.ellipse(-r*0.62,-r*0.55,r*0.12,r*0.1,-0.4,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(r*0.62,-r*0.55,r*0.12,r*0.1,0.4,0,Math.PI*2); ctx.fill();
+  // Szem
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.ellipse(-r*0.3,-r*0.14,r*0.23,r*0.25,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(r*0.3,-r*0.14,r*0.23,r*0.25,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#1a1a1a';
+  ctx.beginPath(); ctx.arc(-r*0.27,-r*0.1,r*0.13,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(r*0.27,-r*0.1,r*0.13,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(-r*0.21,-r*0.16,r*0.055,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(r*0.33,-r*0.16,r*0.055,0,Math.PI*2); ctx.fill();
+  // Orr
+  ctx.fillStyle='#66bb6a';
+  ctx.beginPath(); ctx.ellipse(0,r*0.22,r*0.29,r*0.21,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#388e3c'; ctx.lineWidth=1; ctx.stroke();
+  ctx.fillStyle='#2e7d32';
+  ctx.beginPath(); ctx.ellipse(-r*0.1,r*0.22,r*0.075,r*0.085,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(r*0.1,r*0.22,r*0.075,r*0.085,0,0,Math.PI*2); ctx.fill();
+  // Mosoly
+  ctx.strokeStyle='#2e7d32'; ctx.lineWidth=1.8; ctx.lineCap='round';
+  ctx.beginPath(); ctx.arc(0,r*0.1,r*0.26,0.25,Math.PI-0.25); ctx.stroke();
+  ctx.restore();
+}
+
+Events.on(render,'afterRender',()=>{
+  // Háttér gradient
+  const sky=ctx.createLinearGradient(0,0,0,H());
+  sky.addColorStop(0,'#4fc3f7');
+  sky.addColorStop(0.5,'#b3e5fc');
+  sky.addColorStop(1,'#e1f5fe');
+  ctx.fillStyle=sky;
+  ctx.fillRect(0,0,W(),H());
+
+  // Háttér elemek generálása
+  if(!bgElements) generateBg();
+
+  // Hegyek
+  bgElements.mountains.forEach(m=>drawMountain(m.x,m.y,m.w,m.h,m.c));
+
+  // Talaj
+  drawGround();
+
+  // Fák
+  bgElements.trees.forEach(t=>drawTree(t.x,t.y));
+
+  // Felhők
+  bgElements.clouds.forEach(c=>drawCloud(c.x,c.y,c.s));
+
+  // Falak (textúrával)
+  lvlObjs.forEach(b=>{
+    if(b.label==='wall') drawWallBody(b);
+  });
+
+  // Disznók
+  pigs.forEach(p=>drawPigSprite(p.position.x,p.position.y,18));
+
+  // Madár
+  if(bird) drawBirdSprite(bird.position.x,bird.position.y,18,birdFired?bird.angle:0);
+
+  // Parittya
+  drawSlingshot();
+
+  // Gumi szíj (ha nem lőtt)
   if(bird&&!birdFired){
     const bx=bird.position.x, by=bird.position.y;
+    const sx=SX, sy=SY();
+    ctx.strokeStyle='#5d3a1a'; ctx.lineWidth=4; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(sx-12,sy-52); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx+14,sy-57); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.strokeStyle='#8d6e4a'; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(sx-12,sy-52); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx+14,sy-57); ctx.lineTo(bx,by); ctx.stroke();
 
-    // Gumi szíj
-    ctx.strokeStyle='#795548'; ctx.lineWidth=3;
-    ctx.beginPath(); ctx.moveTo(sx-10,sy-50); ctx.lineTo(bx,by); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(sx+12,sy-55); ctx.lineTo(bx,by); ctx.stroke();
-
+    // Röppálya
     if(dragging){
-      // Röppálya előrejelzés
-      // Sebesség: dx*SPEED, dy*SPEED (px/frame at 60fps)
       const vx=(sx-bx)*SPEED, vy=(sy-by)*SPEED;
-      let tx=bx, ty=by, tvx=vx, tvy=vy;
+      let tx=bx,ty=by,tvx=vx,tvy=vy;
       for(let i=0;i<80;i++){
-        tvy+=G_TRAJ;
-        tx+=tvx; ty+=tvy;
+        tvy+=G_TRAJ; tx+=tvx; ty+=tvy;
         if(ty>H()-GH||tx<0||tx>W()) break;
-        // Minden 2. frame-nél rajzol pontot (ritkítás a láthatóságért)
         if(i%2===0){
-          const progress=i/80;
-          const alpha=Math.max(0.7-progress*0.65, 0.05);
-          const r=Math.max(4.5-progress*3, 1.5);
+          const prog=i/80;
           ctx.beginPath();
-          ctx.arc(tx,ty,r,0,Math.PI*2);
-          ctx.fillStyle=`rgba(220,80,80,${alpha})`;
+          ctx.arc(tx,ty,Math.max(4-prog*2.5,1.2),0,Math.PI*2);
+          ctx.fillStyle=`rgba(255,255,255,${Math.max(0.7-prog*0.65,0.05)})`;
           ctx.fill();
         }
       }
     }
+  }
+
+  // Részecskék
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.18; p.life-=0.04;
+    if(p.life<=0){particles.splice(i,1);continue;}
+    ctx.globalAlpha=p.life;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);
+    ctx.fillStyle=p.color; ctx.fill();
+    ctx.globalAlpha=1;
   }
 });
 
