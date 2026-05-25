@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Physics Birds</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { overflow:hidden; background:#000; }
+  #gw {
+    position:fixed; inset:0;
+    background:linear-gradient(180deg,#87CEEB 0%,#b8e4f7 60%,#dff6ff 100%);
+  }
+  canvas { display:block; width:100%; height:100%; }
+  #hud {
+    position:fixed; top:12px; left:12px; right:12px;
+    display:flex; justify-content:space-between; align-items:center;
+    pointer-events:none;
+  }
+  .pill {
+    background:rgba(255,255,255,0.88);
+    padding:6px 14px; border-radius:20px;
+    font-size:13px; font-weight:500; color:#222;
+    font-family:sans-serif;
+  }
+  #hintBox {
+    position:fixed; top:52px; left:12px;
+    background:rgba(255,255,255,0.75);
+    padding:4px 12px; border-radius:14px;
+    font-size:11px; color:#555; pointer-events:none;
+    font-family:sans-serif;
+  }
+  #msgBox {
+    display:none; position:fixed;
+    top:50%; left:50%; transform:translate(-50%,-50%);
+    background:rgba(255,255,255,0.96);
+    padding:20px 32px; border-radius:16px;
+    text-align:center; font-size:17px; font-weight:500; color:#222;
+    white-space:nowrap; z-index:10; font-family:sans-serif;
+  }
+  #hint2 {
+    position:fixed; bottom:12px; left:12px;
+    font-size:11px; color:rgba(0,0,0,0.4);
+    font-family:sans-serif; pointer-events:none;
+  }
+  #btns {
+    position:fixed; bottom:12px; right:12px;
+    display:flex; gap:8px;
+  }
+  button {
+    background:rgba(255,255,255,0.88);
+    border:0.5px solid rgba(0,0,0,0.18);
+    border-radius:20px; padding:6px 14px;
+    font-size:13px; cursor:pointer; font-family:sans-serif;
+  }
+</style>
+</head>
+<body>
+<div id="gw"><canvas id="gc"></canvas></div>
+<div id="hud">
+  <div class="pill"><span id="lvlLbl">1. pálya</span> &nbsp;·&nbsp; 🐦 <span id="birdLbl">3</span></div>
+  <div class="pill">🐷 <span id="pigLbl">0</span></div>
+</div>
+<div id="hintBox"></div>
+<div id="msgBox"></div>
+<div id="hint2">Húzd a piros madarat! [R = újra]</div>
+<div id="btns">
+  <button id="btnR">↺ Újra</button>
+  <button id="btnN" style="display:none">Következő →</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+(function(){
+const {Engine,Render,Runner,Bodies,Composite,Events,Body} = Matter;
+
+const canvas = document.getElementById('gc');
+const gw = document.getElementById('gw');
+const W = ()=>gw.clientWidth;
+const H = ()=>gw.clientHeight;
+canvas.width = W(); canvas.height = H();
+
+const engine = Engine.create();
+const world = engine.world;
+const render = Render.create({
+  canvas, engine,
+  options:{width:W(),height:H(),wireframes:false,background:'transparent'}
+});
+
+const GH = 28;
+const ground = Bodies.rectangle(W()/2, H()-GH/2, W()*4, GH, {
+  isStatic:true, label:'ground', render:{fillStyle:'#5a9e44'}
+});
+Composite.add(world, ground);
+
+const SX = 130, MAX_PULL = 90;
+const SY = ()=>H()-GH-127; // parittya magassága: 127px a talaj felett
+
+// Gravitáció empirikusan mérve Matter.js 0.19 alapján:
+// engine.gravity.y=1, scale=0.001, timestep=1000/60
+// g_px_per_frame = 1 * 0.001 * (1000/60) = 0.2778 px/frame (velocity/frame)
+// De a Runner deltaidőre skálázódik: ténylegesen ~0.55 px/frame² a gyakorlatban
+const G_TRAJ = 0.55;
+const SPEED = 0.18; // ugyanaz mint fireBird-ben
+
+let bird=null, birdFired=false, dragging=false, dragOffX=0, dragOffY=0;
+const pigs=[], lvlObjs=[];
+let curLevel=0, birdsTotal=3, birdsUsed=0, lvlOver=false;
+let birdSettleTimer=null, waitingRespawn=false;
+
+function gnd(){ return H()-GH; }
+
+function makeBird(){
+  if(bird) Composite.remove(world,bird);
+  birdFired=false; dragging=false; waitingRespawn=false;
+  clearTimeout(birdSettleTimer);
+  bird=Bodies.circle(SX,SY(),18,{
+    isStatic:true,density:0.005,restitution:0.4,friction:0.1,
+    label:'bird',render:{fillStyle:'#e53935',strokeStyle:'#b71c1c',lineWidth:2}
+  });
+  Composite.add(world,bird);
+}
+
+function clearLevel(){
+  lvlObjs.forEach(o=>Composite.remove(world,o));
+  pigs.length=0; lvlObjs.length=0;
+}
+
+function addPig(x,y){
+  const p=Bodies.circle(x,y,18,{
+    isStatic:false,restitution:0.15,friction:0.8,frictionStatic:1,
+    label:'pig',render:{fillStyle:'#43a047',strokeStyle:'#2e7d32',lineWidth:2}
+  });
+  pigs.push(p); lvlObjs.push(p); Composite.add(world,p);
+}
+
+function wall(x,y,w,h,color='#8d6e63'){
+  const b=Bodies.rectangle(x,y,w,h,{
+    isStatic:true,label:'wall',
+    render:{fillStyle:color,strokeStyle:'#5d4037',lineWidth:1.5}
+  });
+  lvlObjs.push(b); Composite.add(world,b);
+}
+
+// Pályák: X koordináta a parittyától számítva (~130px-től jobbra)
+// Disznók max ~100px magasan a talajtól (gnd()-100)
+const levels=[
+  {birds:3, desc:'Lőj egyenesen a malacra!', build:()=>{
+    addPig(360, gnd()-18);
+  }},
+  {birds:3, desc:'Lőj a polcon ülő malacra!', build:()=>{
+    wall(360, gnd()-48, 120, 14);
+    addPig(360, gnd()-75);
+  }},
+  {birds:3, desc:'Két malac – mindkettőt el kell találni!', build:()=>{
+    addPig(310, gnd()-18);
+    addPig(450, gnd()-18);
+  }},
+  {birds:3, desc:'Két malac, két szint!', build:()=>{
+    wall(310, gnd()-38, 100, 14);
+    addPig(310, gnd()-65);
+    wall(450, gnd()-65, 100, 14);
+    addPig(450, gnd()-92);
+  }},
+  {birds:3, desc:'Lőj felülről a nyitott zárba!', build:()=>{
+    wall(350, gnd()-48, 14, 95);
+    wall(430, gnd()-48, 14, 95);
+    wall(390, gnd()-13, 66, 14);
+    addPig(390, gnd()-40);
+  }},
+  {birds:3, desc:'Egy szabad, egy zárt – spórold a madarakat!', build:()=>{
+    addPig(290, gnd()-18);
+    wall(420, gnd()-48, 14, 95);
+    wall(490, gnd()-48, 14, 95);
+    wall(455, gnd()-13, 56, 14);
+    addPig(455, gnd()-40);
+  }},
+  {birds:4, desc:'Három malac – mindegyik más távolságra!', build:()=>{
+    wall(295, gnd()-38, 80, 14);
+    addPig(295, gnd()-65);
+    wall(390, gnd()-55, 80, 14);
+    addPig(390, gnd()-82);
+    wall(490, gnd()-72, 80, 14);
+    addPig(490, gnd()-99);
+  }},
+  {birds:3, desc:'Lőj a résen át a bunkerba!', build:()=>{
+    const cx=410;
+    wall(cx-46, gnd()-52, 16, 104);
+    wall(cx+46, gnd()-52, 16, 104);
+    // tetőlapok: 46px rés középen
+    wall(cx-57, gnd()-101, 30, 14);
+    wall(cx+57, gnd()-101, 30, 14);
+    wall(cx, gnd()-13, 76, 16);
+    addPig(cx, gnd()-57);
+  }},
+  {birds:3, desc:'Két bunker – két pontos lövés kell!', build:()=>{
+    function bunker(cx){
+      wall(cx-36, gnd()-48, 14, 96);
+      wall(cx+36, gnd()-48, 14, 96);
+      wall(cx-48, gnd()-93, 26, 14);
+      wall(cx+48, gnd()-93, 26, 14);
+      wall(cx, gnd()-13, 58, 14);
+      addPig(cx, gnd()-57);
+    }
+    bunker(330); bunker(470);
+  }},
+  {birds:1, desc:'1 madár, 1 esély – felülről kell bedobni!', build:()=>{
+    const cx=410;
+    const innerW=80; // belső szélesség: cx-40-től cx+40-ig
+    // Oldalfalak (külső széle cx±47, belső széle cx±40)
+    wall(cx-43, gnd()-55, 14, 110); // bal fal: cx-50 .. cx-36
+    wall(cx+43, gnd()-55, 14, 110); // jobb fal: cx+36 .. cx+50
+    // Alap
+    wall(cx, gnd()-13, 86, 14);
+    // Tetőlapok: pontosan az oldalfal belső széléig érnek, 38px rés középen
+    // Bal tetőlap: cx-40-tól cx-19-ig (közép: cx-29, szélesség: 22)
+    wall(cx-29, gnd()-103, 22, 14);
+    // Jobb tetőlap: cx+19-től cx+40-ig (közép: cx+29, szélesség: 22)
+    wall(cx+29, gnd()-103, 22, 14);
+
+    addPig(cx-8, gnd()-38);
+  }},
+];
+
+function updateHUD(){
+  document.getElementById('lvlLbl').textContent=(curLevel+1)+'. pálya';
+  document.getElementById('birdLbl').textContent=Math.max(birdsTotal-birdsUsed,0);
+  document.getElementById('pigLbl').textContent=pigs.length;
+}
+function showMsg(t){document.getElementById('msgBox').textContent=t;document.getElementById('msgBox').style.display='block';}
+function hideMsg(){document.getElementById('msgBox').style.display='none';}
+
+function loadLevel(idx){
+  clearLevel(); birdsUsed=0; lvlOver=false; waitingRespawn=false;
+  clearTimeout(birdSettleTimer);
+  const lv=levels[idx%levels.length];
+  birdsTotal=lv.birds;
+  document.getElementById('hintBox').textContent=lv.desc;
+  hideMsg();
+  document.getElementById('btnN').style.display='none';
+  lv.build(); makeBird(); updateHUD();
+}
+loadLevel(0);
+
+function scheduleRespawn(){
+  if(waitingRespawn||lvlOver) return;
+  waitingRespawn=true;
+  birdSettleTimer=setTimeout(()=>{
+    if(lvlOver) return;
+    if(birdsUsed<birdsTotal){ makeBird(); updateHUD(); }
+    else levelFail();
+  },2500);
+}
+
+function fireBird(px,py){
+  if(birdFired||!bird) return;
+  birdFired=true; birdsUsed++;
+  const dx=SX-px, dy=SY()-py;
+  Body.setStatic(bird,false);
+  Body.setVelocity(bird,{x:dx*SPEED, y:dy*SPEED});
+  updateHUD();
+  scheduleRespawn();
+}
+
+function getPos(e){
+  const r=canvas.getBoundingClientRect();
+  const s=e.touches?e.touches[0]:e;
+  return{x:(s.clientX-r.left)*(W()/r.width), y:(s.clientY-r.top)*(H()/r.height)};
+}
+function onDown(e){
+  if(birdFired||!bird||waitingRespawn) return;
+  const p=getPos(e);
+  if(Math.hypot(p.x-bird.position.x,p.y-bird.position.y)<44){
+    dragging=true; dragOffX=p.x-bird.position.x; dragOffY=p.y-bird.position.y;
+  }
+}
+function onMove(e){
+  if(!dragging||!bird||birdFired) return;
+  e.preventDefault();
+  const p=getPos(e);
+  let tx=p.x-dragOffX, ty=p.y-dragOffY;
+  const dx=tx-SX, dy=ty-SY(), dist=Math.hypot(dx,dy);
+  if(dist>MAX_PULL){tx=SX+dx/dist*MAX_PULL; ty=SY()+dy/dist*MAX_PULL;}
+  Body.setPosition(bird,{x:tx,y:ty});
+}
+function onUp(e){
+  if(!dragging||!bird||birdFired) return;
+  dragging=false;
+  if(Math.hypot(bird.position.x-SX,bird.position.y-SY())>10)
+    fireBird(bird.position.x,bird.position.y);
+  else
+    Body.setPosition(bird,{x:SX,y:SY()});
+}
+canvas.addEventListener('mousedown',onDown);
+canvas.addEventListener('mousemove',onMove,{passive:false});
+canvas.addEventListener('mouseup',onUp);
+canvas.addEventListener('touchstart',onDown,{passive:true});
+canvas.addEventListener('touchmove',onMove,{passive:false});
+canvas.addEventListener('touchend',onUp);
+
+const toRemove=new Set();
+Events.on(engine,'collisionStart',e=>{
+  e.pairs.forEach(pair=>{
+    const isBird=b=>b.label==='bird';
+    const isPig=b=>b.label==='pig';
+    if((isBird(pair.bodyA)&&isPig(pair.bodyB))||(isPig(pair.bodyA)&&isBird(pair.bodyB))){
+      if(pair.bodyA.speed+pair.bodyB.speed>4){
+        toRemove.add(isPig(pair.bodyA)?pair.bodyA:pair.bodyB);
+      }
+    }
+  });
+});
+
+Events.on(engine,'afterUpdate',()=>{
+  if(toRemove.size){
+    toRemove.forEach(p=>{
+      const i=pigs.indexOf(p);
+      if(i!==-1){Composite.remove(world,p);pigs.splice(i,1);}
+    });
+    toRemove.clear(); updateHUD();
+    if(pigs.length===0&&!lvlOver) levelWin();
+  }
+  if(birdFired&&!waitingRespawn&&bird&&!lvlOver){
+    const bx=bird.position.x, by=bird.position.y;
+    if(bx<-50||bx>W()+50||by>H()+50) scheduleRespawn();
+  }
+});
+
+function levelWin(){
+  lvlOver=true; clearTimeout(birdSettleTimer);
+  curLevel++;
+  if(curLevel>=levels.length){
+    showMsg('🎉 Mind a 10 pályát teljesítetted!'); curLevel=0;
+  } else {
+    showMsg('✅ Pálya teljesítve! ('+curLevel+'/10)');
+    document.getElementById('btnN').style.display='block';
+  }
+}
+function levelFail(){lvlOver=true; showMsg('😢 Elfogytak a madarak! Próbáld újra.');}
+
+document.getElementById('btnR').onclick=()=>{clearTimeout(birdSettleTimer);loadLevel(curLevel);};
+document.getElementById('btnN').onclick=()=>{clearTimeout(birdSettleTimer);hideMsg();document.getElementById('btnN').style.display='none';loadLevel(curLevel);};
+document.addEventListener('keydown',e=>{if(e.key==='r'||e.key==='R'){clearTimeout(birdSettleTimer);loadLevel(curLevel);}});
+
+// Canvas 2D context a saját rajzoláshoz
+const ctx=canvas.getContext('2d');
+
+Events.on(render,'afterRender',()=>{
+  // Talaj felülrajzolás
+  ctx.fillStyle='#5a9e44';
+  ctx.fillRect(0,H()-GH,W(),GH);
+
+  const sx=SX, sy=SY();
+
+  // Parittya ágak
+  ctx.strokeStyle='#4e342e'; ctx.lineWidth=5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(sx-5,sy+4); ctx.lineTo(sx-10,sy-50); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sx+5,sy+4); ctx.lineTo(sx+12,sy-55); ctx.stroke();
+
+  if(bird&&!birdFired){
+    const bx=bird.position.x, by=bird.position.y;
+
+    // Gumi szíj
+    ctx.strokeStyle='#795548'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(sx-10,sy-50); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx+12,sy-55); ctx.lineTo(bx,by); ctx.stroke();
+
+    if(dragging){
+      // Röppálya előrejelzés
+      // Sebesség: dx*SPEED, dy*SPEED (px/frame at 60fps)
+      const vx=(sx-bx)*SPEED, vy=(sy-by)*SPEED;
+      let tx=bx, ty=by, tvx=vx, tvy=vy;
+      for(let i=0;i<80;i++){
+        tvy+=G_TRAJ;
+        tx+=tvx; ty+=tvy;
+        if(ty>H()-GH||tx<0||tx>W()) break;
+        // Minden 2. frame-nél rajzol pontot (ritkítás a láthatóságért)
+        if(i%2===0){
+          const progress=i/80;
+          const alpha=Math.max(0.7-progress*0.65, 0.05);
+          const r=Math.max(4.5-progress*3, 1.5);
+          ctx.beginPath();
+          ctx.arc(tx,ty,r,0,Math.PI*2);
+          ctx.fillStyle=`rgba(220,80,80,${alpha})`;
+          ctx.fill();
+        }
+      }
+    }
+  }
+});
+
+Render.run(render);
+Runner.run(Runner.create(),engine);
+})();
+</script>
+</body>
+</html>
