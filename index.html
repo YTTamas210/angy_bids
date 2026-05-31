@@ -198,72 +198,172 @@ function generateBg(){
 }
 
 const levels=[
-  {birds:3, desc:'Lőj egyenesen a malacra!', build:()=>{
+  // 1 – bemelegítés
+  {birds:3, desc:'1. Lőj egyenesen a malacra!', build:()=>{
     addPig(360, gnd()-18);
   }},
-  {birds:3, desc:'Lőj a polcon ülő malacra!', build:()=>{
+  // 2 – polcon ülő
+  {birds:3, desc:'2. Lőj a polcon ülő malacra!', build:()=>{
     wall(360, gnd()-48, 120, 14,'wood');
     addPig(360, gnd()-75);
   }},
-  {birds:3, desc:'Két malac – mindkettőt el kell találni!', build:()=>{
-    addPig(310, gnd()-18);
+  // 3 – két malac, spórold a madarakat
+  {birds:2, desc:'3. Két malac – csak 2 madár van!', build:()=>{
+    addPig(320, gnd()-18);
+    addPig(460, gnd()-18);
+  }},
+  // 4 – fal mögött, oldalról kell bekerülni (alacsony falak, madár átrepül)
+  {birds:3, desc:'4. A fal mögé kell kerülni!', build:()=>{
+    wall(380, gnd()-45, 14, 90,'stone');
     addPig(450, gnd()-18);
+    addPig(500, gnd()-18);
   }},
-  {birds:3, desc:'Két malac, két szint!', build:()=>{
-    wall(310, gnd()-38, 100, 14,'wood');
-    addPig(310, gnd()-65);
-    wall(450, gnd()-65, 100, 14,'wood');
-    addPig(450, gnd()-92);
+  // 5 – két szint, különböző szögek
+  {birds:3, desc:'5. Két malac, két szint!', build:()=>{
+    wall(320, gnd()-38, 90, 14,'wood');
+    addPig(320, gnd()-65);
+    wall(460, gnd()-68, 90, 14,'wood');
+    addPig(460, gnd()-95);
   }},
-  {birds:3, desc:'Lőj felülről a nyitott zárba!', build:()=>{
-    wall(350, gnd()-48, 14, 95,'stone');
-    wall(430, gnd()-48, 14, 95,'stone');
-    wall(390, gnd()-13, 66, 14,'stone');
-    addPig(390, gnd()-40);
+  // 6 – két malac egymás mellett, közös polcon, fal védi őket
+  {birds:2, desc:'6. Döntsd le a tornyot!', build:()=>{
+    wall(430, gnd()-20, 120, 14,'wood');
+    addPig(400, gnd()-47);
+    addPig(460, gnd()-47);
   }},
-  {birds:3, desc:'Egy szabad, egy zárt – spórold a madarakat!', build:()=>{
-    addPig(290, gnd()-18);
-    wall(420, gnd()-48, 14, 95,'stone');
-    wall(490, gnd()-48, 14, 95,'stone');
-    wall(455, gnd()-13, 56, 14,'stone');
-    addPig(455, gnd()-40);
+  // 7 – U-zárka, felülről nyitott, 1 malac
+  {birds:2, desc:'7. Lőj felülről a nyitott zárba!', build:()=>{
+    wall(355, gnd()-48, 14, 95,'stone');
+    wall(435, gnd()-48, 14, 95,'stone');
+    wall(395, gnd()-13, 70, 14,'stone');
+    addPig(395, gnd()-40);
   }},
-  {birds:4, desc:'Három malac – mindegyik más távolságra!', build:()=>{
-    wall(295, gnd()-38, 80, 14,'wood');
-    addPig(295, gnd()-65);
-    wall(390, gnd()-55, 80, 14,'wood');
-    addPig(390, gnd()-82);
-    wall(490, gnd()-72, 80, 14,'wood');
-    addPig(490, gnd()-99);
-  }},
-  {birds:3, desc:'Lőj a résen át a bunkerba!', build:()=>{
-    const cx=410;
-    wall(cx-46, gnd()-52, 16, 104,'stone');
-    wall(cx+46, gnd()-52, 16, 104,'stone');
-    wall(cx-57, gnd()-101, 30, 14,'stone');
-    wall(cx+57, gnd()-101, 30, 14,'stone');
-    wall(cx, gnd()-13, 76, 16,'stone');
-    addPig(cx, gnd()-57);
-  }},
-  {birds:3, desc:'Két bunker – két pontos lövés kell!', build:()=>{
-    function bunker(cx){
-      wall(cx-36, gnd()-48, 14, 96,'stone');
-      wall(cx+36, gnd()-48, 14, 96,'stone');
-      wall(cx-48, gnd()-93, 26, 14,'stone');
-      wall(cx+48, gnd()-93, 26, 14,'stone');
-      wall(cx, gnd()-13, 58, 14,'stone');
-      addPig(cx, gnd()-57);
+  // 8 – dominó: egymás mellett álló falak, ha az első dől a többi is
+  {birds:2, desc:'8. Döntsd el a dominót!', build:()=>{
+    for(let i=0;i<5;i++){
+      wall(310+i*38, gnd()-32, 12, 64,'wood');
     }
-    bunker(330); bunker(470);
+    addPig(310+4*38+30, gnd()-18);
   }},
-  {birds:1, desc:'1 madár, 1 esély – felülről kell bedobni!', build:()=>{
-    const cx=410;
-    wall(cx-43, gnd()-55, 14, 110,'dark');
-    wall(cx+43, gnd()-55, 14, 110,'dark');
-    wall(cx, gnd()-13, 86, 14,'dark');
-    wall(cx-29, gnd()-103, 22, 14,'dark');
-    wall(cx+29, gnd()-103, 22, 14,'dark');
-    addPig(cx-8, gnd()-38);
+  // 9 – három malac szétszórva, 3 madár (pontosság kell)
+  {birds:3, desc:'9. Három malac – mindegyik más szögben!', build:()=>{
+    addPig(300, gnd()-18);
+    wall(390, gnd()-40, 90, 14,'wood');
+    addPig(390, gnd()-67);
+    addPig(500, gnd()-18);
+  }},
+  // 10 – bal oldal nyitott rés, alacsony szögben kell becsúsztatni
+  {birds:3, desc:'10. Csúsztasd be oldalról – alacsony szögben!', build:()=>{
+    const cx=430;
+    wall(cx+44, gnd()-45, 14, 90,'stone');  // jobb fal
+    wall(cx+8,  gnd()-87, 58, 14,'stone');  // tető (kinyúlik balra)
+    wall(cx+8,  gnd()-13, 58, 14,'stone');  // alap
+    addPig(cx+20, gnd()-50);
+  }},
+  // 11 – első doboz: bal oldalt nyitott (oldalról); második: felülről nyitott U
+  {birds:3, desc:'11. Egyik oldalról, másik felülről!', build:()=>{
+    // Első doboz: bal oldalt nyitott
+    wall(370, gnd()-40, 14, 80,'stone');
+    wall(343, gnd()-77, 40, 14,'stone');
+    wall(343, gnd()-13, 40, 14,'stone');
+    addPig(355, gnd()-43);
+    // Második doboz: U-alak, felülről nyitott
+    wall(470, gnd()-40, 14, 80,'stone');  // bal fal
+    wall(540, gnd()-40, 14, 80,'stone');  // jobb fal
+    wall(505, gnd()-13, 56, 14,'stone');  // alap
+    addPig(505, gnd()-43);
+  }},
+  // 12 – magas tornyok, 1 madárral kell mind 3-at eltalálni
+  {birds:3, desc:'12. Három torony – spórolj!', build:()=>{
+    [[310,50],[400,70],[490,55]].forEach(([x,h])=>{
+      wall(x, gnd()-h/2, 18, h,'wood');
+      addPig(x, gnd()-h-18);
+    });
+  }},
+  // 13 – oldalsó rés: tető + alap + jobb fal, bal oldalt ~40px rés van a tető alatt
+  {birds:2, desc:'13. Oldalsó rés – pontosan a nyíláson át!', build:()=>{
+    const cx=430;
+    // Teljes jobb és hátsó zár, bal oldalt rés van a tető és a talaj között
+    wall(cx+46, gnd()-50, 14, 100,'dark');   // jobb fal (zárt)
+    wall(cx+4,  gnd()-93, 60, 14,'dark');    // tető
+    wall(cx+4,  gnd()-13, 60, 14,'dark');    // alap
+    // bal oldalon felül kis fal -> csak ~38px rés marad középtájt
+    wall(cx-18, gnd()-82, 14, 22,'dark');    // bal felső fal-csonk
+    // alap bal szél szintén kicsit kijjebb ér
+    addPig(cx+18, gnd()-53);
+  }},
+  // 14 – lánc: falak egymás mellett, ha az egyik dől mind dől
+  {birds:2, desc:'14. Lánc – egy lövés, sok kár!', build:()=>{
+    for(let i=0;i<4;i++){
+      wall(330+i*42, gnd()-35, 12, 70,'wood');
+      if(i%2===0) addPig(330+i*42, gnd()-80);
+    }
+  }},
+  // 15 – négy malac szétszórva, csak 3 madár
+  {birds:3, desc:'15. Négy malac, három madár – gondolkodj!', build:()=>{
+    addPig(300, gnd()-18);
+    wall(370, gnd()-38, 80, 12,'wood');
+    addPig(370, gnd()-65);
+    addPig(460, gnd()-18);
+    wall(520, gnd()-55, 14, 110,'stone');
+    addPig(560, gnd()-18);
+  }},
+  // 16 – ikerbunker zárt tetővel, kis réssel felül
+  {birds:3, desc:'16. Egyik oldalról, másik felülről!', build:()=>{
+    // Első bunker: bal oldalt nyitott
+    wall(338, gnd()-45, 14, 90,'stone');
+    wall(311, gnd()-87, 40, 14,'stone');
+    wall(311, gnd()-13, 40, 14,'stone');
+    addPig(323, gnd()-50);
+    // Második bunker: felülről nyitott U
+    wall(455, gnd()-45, 14, 90,'stone');
+    wall(520, gnd()-45, 14, 90,'stone');
+    wall(487, gnd()-13, 58, 14,'stone');
+    addPig(487, gnd()-50);
+  }},
+  // 17 – zigzag polcok, minden polcon egy malac
+  {birds:4, desc:'17. Zigzag polcok – minden szinten egy malac!', build:()=>{
+    wall(310, gnd()-35, 80, 12,'wood'); addPig(310, gnd()-62);
+    wall(420, gnd()-60, 80, 12,'wood'); addPig(420, gnd()-87);
+    wall(310, gnd()-85, 80, 12,'wood'); addPig(310, gnd()-112);  // max ~115
+    addPig(500, gnd()-18);
+  }},
+  // 18 – kő erőd vastag falakkal, réssel oldalon
+  {birds:3, desc:'18. Kő erőd – csúsztasd be oldalról!', build:()=>{
+    const cx=420;
+    wall(cx-50, gnd()-50, 14, 100,'dark');  // bal fal
+    // jobb oldal nyitott (nincs jobb fal)
+    wall(cx-22, gnd()-96, 44, 14,'dark');   // tető balra tolva
+    wall(cx-8, gnd()-13, 56, 14,'dark');    // alap
+    // belső akadály
+    wall(cx-5, gnd()-50, 12, 56,'dark');
+    addPig(cx+20, gnd()-40);
+    addPig(cx+20, gnd()-78);
+  }},
+  // 19 – öt malac, csak 4 madár, chain reaction kell
+  {birds:4, desc:'19. Öt malac – chain reaction kell!', build:()=>{
+    // torony amibe bele lehet kergetni a szomszédos malacokat
+    wall(410, gnd()-20, 60, 14,'wood');
+    wall(410, gnd()-85, 60, 14,'wood');
+    addPig(410, gnd()-38);
+    addPig(410, gnd()-105);
+    // szétszórt
+    addPig(310, gnd()-18);
+    addPig(500, gnd()-18);
+    // polcon
+    wall(560, gnd()-45, 70, 12,'wood');
+    addPig(560, gnd()-72);
+  }},
+  // 20 – végső pálya: 1 madár, komplex erőd, pontosan kell
+  {birds:1, desc:'20. VÉGSŐ PÁLYA – 1 madár, 1 esély!', build:()=>{
+    const cx=415;
+    wall(cx-44, gnd()-55, 14, 110,'dark');
+    wall(cx+44, gnd()-55, 14, 110,'dark');
+    wall(cx, gnd()-13, 74, 14,'dark');
+    // tető: két lap, ~38px rés középen
+    wall(cx-31, gnd()-103, 20, 14,'dark');
+    wall(cx+31, gnd()-103, 20, 14,'dark');
+    addPig(cx, gnd()-38);
   }},
 ];
 
@@ -430,7 +530,7 @@ function levelWin(){
   if(curLevel>=levels.length){
     showMsg('🎉 Gratulálok! Mind a 10 pályát teljesítetted!'); curLevel=0;
   } else {
-    showMsg('⭐ Pálya teljesítve! ('+curLevel+'/10)');
+    showMsg('⭐ Pálya teljesítve! ('+curLevel+'/20)');
     document.getElementById('btnN').style.display='block';
   }
 }
